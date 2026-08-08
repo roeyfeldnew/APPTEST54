@@ -68,10 +68,59 @@ button {
   }
 }
 
+/* אזור ההדפסה מוסתר לגמרי במסך הרגיל - מופיע רק כשמדפיסים בפועל */
+.print-area {
+  display: none;
+}
+
 .mono {
   font-family: var(--mono);
 }
 
 .serif {
   font-family: var(--serif);
+}
+
+/* ---------- הדפסה: מציגים רק את התמונות, במסך מלא, בלי שאר האתר ---------- */
+@media print {
+  @page {
+    margin: 0;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+
+  .print-area {
+    display: block;
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-photo {
+    width: 100vw;
+    height: 100vh;
+    page-break-after: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .print-photo:last-child {
+    page-break-after: auto;
+  }
+
+  .print-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
