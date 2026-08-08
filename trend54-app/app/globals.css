@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Playfair+Display:ital,wght@0,600;1,600&family=Inter:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #1c1b1a;
+  --paper: #f2ede4;
+  --ink: #1c1b1a;
+  --muted: #8a7f6c;
+  --muted-light: rgba(242, 237, 228, 0.6);
+  --muted-faint: rgba(242, 237, 228, 0.1);
+  --accent: #c1442e;
+  --accent-bright: #d65b3f;
+  --accent-dark: #a6371f;
+  --serif: 'Frank Ruhl Libre', serif;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--paper);
+  font-family: var(--sans);
+  direction: rtl;
+}
+
+button {
+  font-family: inherit;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.mono {
+  font-family: var(--mono);
+}
+
+.serif {
+  font-family: var(--serif);
+}

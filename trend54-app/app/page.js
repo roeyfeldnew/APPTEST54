@@ -1,0 +1,267 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "../lib/supabaseClient";
+
+function slugify(title) {
+  return (
+    title
+      .trim()
+      .toLowerCase()
+      .replace(/[^\u0590-\u05FFa-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") +
+    "-" +
+    Math.random().toString(36).slice(2, 7)
+  );
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  async function loadEvents() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("events")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (!error) setEvents(data || []);
+    setLoading(false);
+  }
+
+  async function createEvent() {
+    if (!title || !date) return;
+    setCreating(true);
+    const slug = slugify(title);
+    const { data, error } = await supabase
+      .from("events")
+      .insert({ title, event_date: date, slug })
+      .select()
+      .single();
+    setCreating(false);
+    if (error) {
+      alert("שגיאה ביצירת האירוע: " + error.message);
+      return;
+    }
+    setShowCreate(false);
+    setTitle("");
+    setDate("");
+    router.push(`/event/${data.id}`);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <header style={{ padding: "48px 32px 64px 32px" }}>
+        <div
+          className="mono"
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.2em",
+            color: "var(--accent)",
+            textTransform: "uppercase",
+            marginBottom: 16,
+          }}
+        >
+          סטודיו — הדפסת מגנטים
+        </div>
+        <h1
+          className="serif"
+          style={{
+            color: "var(--paper)",
+            fontWeight: 700,
+            fontSize: "clamp(2.5rem, 6vw, 5rem)",
+            margin: "0 0 16px 0",
+          }}
+        >
+          <span
+            style={{
+              color: "var(--accent-bright)",
+              fontFamily: "'Playfair Display', serif",
+              fontStyle: "italic",
+              fontWeight: 600,
+            }}
+          >
+            TREND54
+          </span>
+        </h1>
+        <p style={{ color: "var(--muted-light)", maxWidth: 420, fontSize: 18 }}>
+          נהל את האירועים שלך, העלה תמונות, ותן לאורחים לבחור ולהדפיס בעצמם.
+        </p>
+
+        <button
+          onClick={() => setShowCreate(true)}
+          className="mono"
+          style={{
+            marginTop: 40,
+            backgroundColor: "var(--paper)",
+            color: "var(--ink)",
+            padding: "14px 24px",
+            borderRadius: 2,
+            fontSize: 12,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          + צור אירוע חדש
+        </button>
+      </header>
+
+      <section style={{ padding: "0 32px 96px 32px" }}>
+        {loading ? (
+          <p className="mono" style={{ color: "var(--muted)" }}>
+            טוען אירועים...
+          </p>
+        ) : events.length === 0 ? (
+          <p className="mono" style={{ color: "var(--muted)" }}>
+            עדיין אין אירועים. צרו את הראשון!
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: 32,
+            }}
+          >
+            {events.map((ev) => (
+              <button
+                key={ev.id}
+                onClick={() => router.push(`/event/${ev.id}`)}
+                style={{
+                  textAlign: "right",
+                  background: "var(--paper)",
+                  border: "none",
+                  borderRadius: 2,
+                  padding: "20px",
+                  cursor: "pointer",
+                  color: "var(--ink)",
+                }}
+              >
+                <div
+                  className="serif"
+                  style={{ fontSize: 22, fontWeight: 600, marginBottom: 8 }}
+                >
+                  {ev.title}
+                </div>
+                <div className="mono" style={{ fontSize: 11, color: "var(--muted)" }}>
+                  {ev.event_date}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {showCreate && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            backgroundColor: "rgba(0,0,0,0.7)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              backgroundColor: "var(--paper)",
+              color: "var(--ink)",
+              borderRadius: 2,
+              padding: 32,
+            }}
+          >
+            <h2 className="serif" style={{ fontSize: 28, marginTop: 0 }}>
+              אירוע חדש
+            </h2>
+            <label className="mono" style={{ fontSize: 10, display: "block", marginBottom: 6 }}>
+              שמות הזוג
+            </label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="לדוגמה: מיכל & אורי"
+              style={{
+                width: "100%",
+                padding: "8px 0",
+                fontSize: 18,
+                marginBottom: 16,
+                border: "none",
+                borderBottom: "2px solid rgba(0,0,0,0.2)",
+                background: "transparent",
+                outline: "none",
+              }}
+            />
+            <label className="mono" style={{ fontSize: 10, display: "block", marginBottom: 6 }}>
+              תאריך
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px 0",
+                fontSize: 18,
+                marginBottom: 24,
+                border: "none",
+                borderBottom: "2px solid rgba(0,0,0,0.2)",
+                background: "transparent",
+                outline: "none",
+              }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setShowCreate(false)}
+                className="mono"
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  border: "1px solid rgba(0,0,0,0.2)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  borderRadius: 2,
+                }}
+              >
+                ביטול
+              </button>
+              <button
+                onClick={createEvent}
+                disabled={!title || !date || creating}
+                className="mono"
+                style={{
+                  flex: 2,
+                  padding: 12,
+                  border: "none",
+                  background: "var(--ink)",
+                  color: "var(--paper)",
+                  cursor: "pointer",
+                  borderRadius: 2,
+                  opacity: !title || !date ? 0.4 : 1,
+                }}
+              >
+                {creating ? "יוצר..." : "יצירת האירוע"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
