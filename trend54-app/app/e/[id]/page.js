@@ -257,8 +257,17 @@ export default function GuestPage() {
             🖨 שלחו להדפסה
           </button>
           <p className="mono" style={{ fontSize: 10, color: "var(--muted)", marginTop: 20, maxWidth: 300, marginInline: "auto" }}>
-            ייפתח חלון ההדפסה של הדפדפן — בחרו את מדפסת המגנטים ולחצו הדפס.
+            ייפתח חלון ההדפסה של הדפדפן — בחרו את מדפסת המגנטים, הגדירו את המידה הרצויה ידנית בהגדרות ההדפסה, ולחצו הדפס. כל תמונה תודפס במסך מלא בעמוד נפרד.
           </p>
+
+          {/* אזור זה מוצג רק בהדפסה עצמה - כל תמונה נבחרה תופיע במסך מלא בעמוד נפרד */}
+          <div className="print-area">
+            {displayedPhotos.filter((p) => selectedIds.includes(p.id)).map((p) => (
+              <div key={p.id} className="print-photo">
+                <img src={publicPhotoUrl(p.storage_path)} alt="" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
