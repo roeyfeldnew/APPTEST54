@@ -27,9 +27,6 @@ create table if not exists photos (
   created_at timestamptz default now()
 );
 
--- תמונת הקאבר של האירוע מוצגת בראש דף האורח.
-alter table events add column if not exists cover_photo_id uuid references photos(id) on delete set null;
-
 -- הרשאות גישה בסיסיות למצב MVP.
 -- אזהרה: זה פותח קריאה/כתיבה לכולם עם ה-anon key. מתאים לבדיקות ולאירוע ראשון,
 -- אך לפני שימוש מסחרי רחב מומלץ להוסיף הזדהות (auth) לצלם ולהגביל בהתאם.
