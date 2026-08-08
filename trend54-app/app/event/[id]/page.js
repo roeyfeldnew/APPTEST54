@@ -107,6 +107,18 @@ export default function EventDashboard() {
     await supabase.storage.from("photos").remove([photo.storage_path]);
     await supabase.from("photos").delete().eq("id", photo.id);
     setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
+    if (event.cover_photo_path === photo.storage_path) {
+      setEvent((prev) => ({ ...prev, cover_photo_path: null }));
+    }
+  }
+
+  async function setCoverPhoto(photo) {
+    const { error } = await supabase.from("events").update({ cover_photo_path: photo.storage_path }).eq("id", id);
+    if (error) {
+      alert("שגיאה בקביעת תמונת קאבר: " + error.message);
+      return;
+    }
+    setEvent((prev) => ({ ...prev, cover_photo_path: photo.storage_path }));
   }
 
   if (!event) return <p className="mono" style={{ padding: 32, color: "var(--muted)" }}>טוען...</p>;
@@ -202,14 +214,30 @@ export default function EventDashboard() {
               <p className="mono" style={{ color: "var(--muted)" }}>עדיין אין תמונות ב-{currentSceneName}</p>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16 }}>
-                {scenePhotos.map((p) => (
-                  <div key={p.id} style={{ position: "relative", borderRadius: 2, overflow: "hidden", aspectRatio: "4/5", background: "rgba(242,237,228,0.06)" }}>
-                    <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    <button onClick={() => removePhoto(p)} style={{ position: "absolute", bottom: 8, left: 8, width: 28, height: 28, borderRadius: 2, background: "rgba(28,27,26,0.75)", border: "none", color: "var(--paper)", cursor: "pointer" }}>
-                      🗑
-                    </button>
-                  </div>
-                ))}
+                {scenePhotos.map((p) => {
+                  const isCover = event.cover_photo_path === p.storage_path;
+                  return (
+                    <div key={p.id} style={{ position: "relative", borderRadius: 2, overflow: "hidden", aspectRatio: "4/5", background: "rgba(242,237,228,0.06)", outline: isCover ? "3px solid var(--accent-bright)" : "none" }}>
+                      <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      {isCover && (
+                        <span className="mono" style={{ position: "absolute", top: 8, right: 8, background: "var(--accent-bright)", color: "var(--paper)", fontSize: 9, padding: "3px 8px", borderRadius: 2 }}>
+                          קאבר
+                        </span>
+                      )}
+                      <button
+                        onClick={() => setCoverPhoto(p)}
+                        title="קבעו כתמונת קאבר"
+                        className="mono"
+                        style={{ position: "absolute", bottom: 8, right: 8, padding: "5px 9px", borderRadius: 2, background: "rgba(28,27,26,0.75)", border: "none", color: "var(--paper)", cursor: "pointer", fontSize: 9 }}
+                      >
+                        {isCover ? "✓ קאבר" : "הפכו לקאבר"}
+                      </button>
+                      <button onClick={() => removePhoto(p)} style={{ position: "absolute", bottom: 8, left: 8, width: 28, height: 28, borderRadius: 2, background: "rgba(28,27,26,0.75)", border: "none", color: "var(--paper)", cursor: "pointer" }}>
+                        🗑
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>

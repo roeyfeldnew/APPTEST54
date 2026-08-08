@@ -1,4 +1,9 @@
 -- הרצה חד-פעמית ב-Supabase: SQL Editor -> New Query -> הדביקו את כל הקובץ -> Run
+--
+-- אם כבר הרצתם את הסכימה בעבר (הטבלאות כבר קיימות), במקום להריץ הכל מחדש
+-- מספיק להריץ רק את השורה הבאה כדי להוסיף תמיכה בתמונת קאבר:
+--   alter table events add column if not exists cover_photo_path text;
+--   create policy "public update events" on events for update using (true);
 
 create extension if not exists "pgcrypto";
 
@@ -7,6 +12,7 @@ create table if not exists events (
   title text not null,
   event_date date not null,
   slug text unique not null,
+  cover_photo_path text,
   created_at timestamptz default now()
 );
 
@@ -36,6 +42,7 @@ alter table photos enable row level security;
 
 create policy "public read events" on events for select using (true);
 create policy "public insert events" on events for insert with check (true);
+create policy "public update events" on events for update using (true);
 
 create policy "public read scenes" on scenes for select using (true);
 create policy "public insert scenes" on scenes for insert with check (true);
