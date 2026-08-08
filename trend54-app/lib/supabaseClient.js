@@ -8,11 +8,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export function publicPhotoUrl(storagePath) {
   if (!storagePath) return "";
-
-  const { data } = supabase.storage
-    .from("photos")
-    .getPublicUrl(storagePath);
-
-  return data.publicUrl;
+  return `${supabaseUrl}/storage/v1/object/public/photos/${storagePath}`;
 }
 ```
