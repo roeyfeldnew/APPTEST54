@@ -17,6 +17,7 @@ export default function EventDashboard() {
   const [newSceneName, setNewSceneName] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
+  const [savingCover, setSavingCover] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -103,7 +104,23 @@ export default function EventDashboard() {
     }
   }
 
+  async function setCover(photo) {
+    setSavingCover(true);
+    const { error } = await supabase.from("events").update({ cover_photo_id: photo.id }).eq("id", id);
+    if (error) {
+      console.error(error);
+      alert("לא הצלחנו לשמור את תמונת הקאבר: " + error.message);
+    } else {
+      setEvent((prev) => ({ ...prev, cover_photo_id: photo.id }));
+    }
+    setSavingCover(false);
+  }
+
   async function removePhoto(photo) {
+    if (event?.cover_photo_id === photo.id) {
+      await supabase.from("events").update({ cover_photo_id: null }).eq("id", id);
+      setEvent((prev) => ({ ...prev, cover_photo_id: null }));
+    }
     await supabase.storage.from("photos").remove([photo.storage_path]);
     await supabase.from("photos").delete().eq("id", photo.id);
     setPhotos((prev) => prev.filter((p) => p.id !== photo.id));
@@ -201,29 +218,53 @@ export default function EventDashboard() {
             {scenePhotos.length === 0 ? (
               <p className="mono" style={{ color: "var(--muted)" }}>עדיין אין תמונות ב-{currentSceneName}</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 16 }}>
-                {scenePhotos.map((p) => (
-                  <div key={p.id} style={{ position: "relative", borderRadius: 2, overflow: "hidden", aspectRatio: "4/5", background: "rgba(242,237,228,0.06)" }}>
-                    <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                    <button onClick={() => removePhoto(p)} style={{ position: "absolute", bottom: 8, left: 8, width: 28, height: 28, borderRadius: 2, background: "rgba(28,27,26,0.75)", border: "none", color: "var(--paper)", cursor: "pointer" }}>
-                      🗑
-                    </button>
-                  </div>
-                ))}
+              <div style={{ columns: "3 180px", columnGap: 16 }}>
+                {scenePhotos.map((p) => {
+                  const isCover = event.cover_photo_id === p.id;
+                  return (
+                    <div key={p.id} style={{ breakInside: "avoid", marginBottom: 16, position: "relative", borderRadius: 8, overflow: "hidden", background: "rgba(242,237,228,0.06)" }}>
+                      <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
+                      <div style={{ position: "absolute", top: 8, right: 8, left: 8, display: "flex", justifyContent: "space-between", gap: 6 }}>
+                        {isCover && <span className="mono" style={{ background: "var(--paper)", color: "var(--ink)", padding: "6px 8px", borderRadius: 999, fontSize: 9 }}>⭐ קאבר</span>}
+                        <button onClick={() => removePhoto(p)} style={{ marginLeft: "auto", width: 30, height: 30, borderRadius: 999, background: "rgba(28,27,26,0.75)", border: "none", color: "var(--paper)", cursor: "pointer" }}>🗑</button>
+                      </div>
+                      <button
+                        onClick={() => setCover(p)}
+                        disabled={savingCover}
+                        className="mono"
+                        style={{ position: "absolute", bottom: 10, right: 10, left: 10, padding: "9px 10px", border: "none", borderRadius: 6, background: isCover ? "var(--paper)" : "rgba(28,27,26,0.78)", color: isCover ? "var(--ink)" : "var(--paper)", cursor: "pointer", fontSize: 9 }}
+                      >
+                        {isCover ? "✓ תמונת קאבר" : "⭐ הגדר כקאבר"}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
         )}
 
-        <div style={{ marginTop: 48, background: "rgba(242,237,228,0.06)", borderRadius: 2, padding: "20px 24px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <span className="mono" style={{ fontSize: 11, color: "var(--muted-light)" }}>קישור לאורחים · {guestUrl}</span>
-          <button
-            onClick={() => guestUrl && navigator.clipboard.writeText(guestUrl)}
-            className="mono"
-            style={{ background: "var(--paper)", color: "var(--ink)", padding: "8px 16px", border: "none", borderRadius: 2, cursor: "pointer", fontSize: 10 }}
-          >
-            העתקת קישור
-          </button>
+        <div style={{ marginTop: 48, background: "rgba(242,237,228,0.06)", borderRadius: 2, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--muted-light)", marginBottom: 6 }}>קישור לאורחים</div>
+            <div className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>{guestUrl}</div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={() => guestUrl && window.open(guestUrl, "_blank", "noopener,noreferrer")}
+              className="mono"
+              style={{ background: "var(--paper)", color: "var(--ink)", padding: "10px 16px", border: "none", borderRadius: 2, cursor: "pointer", fontSize: 10 }}
+            >
+              👤 צפייה בתור אורח
+            </button>
+            <button
+              onClick={() => guestUrl && navigator.clipboard.writeText(guestUrl)}
+              className="mono"
+              style={{ background: "transparent", color: "var(--paper)", padding: "10px 16px", border: "1px solid rgba(242,237,228,0.25)", borderRadius: 2, cursor: "pointer", fontSize: 10 }}
+            >
+              העתקת קישור
+            </button>
+          </div>
         </div>
       </main>
     </div>
