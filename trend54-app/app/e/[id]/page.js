@@ -9,6 +9,7 @@ export default function GuestPage() {
   const { id } = useParams();
   const [event, setEvent] = useState(null);
   const [photos, setPhotos] = useState([]);
+  const [loadError, setLoadError] = useState("");
   const [aiOpen, setAiOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [matches, setMatches] = useState(null);
@@ -18,19 +19,38 @@ export default function GuestPage() {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    (async () => {
-      const { data: ev, error: eventError } = await supabase.from("events").select("*").eq("id", id).single();
-      if (eventError) console.error(eventError);
-      setEvent(ev || null);
+    let cancelled = false;
 
-      const { data: ph, error: photosError } = await supabase
-        .from("photos")
-        .select("*")
-        .eq("event_id", id)
-        .order("created_at", { ascending: false });
-      if (photosError) console.error(photosError);
+    async function loadGuestData() {
+      setLoadError("");
+      const [{ data: ev, error: eventError }, { data: ph, error: photosError }] = await Promise.all([
+        supabase.from("events").select("*").eq("id", id).single(),
+        supabase
+          .from("photos")
+          .select("id,event_id,scene_id,storage_path,face_descriptors,created_at")
+          .eq("event_id", id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (cancelled) return;
+
+      if (eventError) {
+        console.error("Guest event load failed:", eventError);
+        setLoadError(`לא הצלחנו לטעון את האירוע: ${eventError.message}`);
+        return;
+      }
+
+      if (photosError) {
+        console.error("Guest photos load failed:", photosError);
+        setLoadError(`האירוע נטען, אבל התמונות לא נטענו: ${photosError.message}`);
+      }
+
+      setEvent(ev || null);
       setPhotos(ph || []);
-    })();
+    }
+
+    if (id) loadGuestData();
+    return () => { cancelled = true; };
   }, [id]);
 
   const visiblePhotos = matches === null ? photos : matches;
@@ -115,7 +135,20 @@ export default function GuestPage() {
     printWindow.document.close();
   }
 
-  if (!event) return <main className="guest-loading">טוען...</main>;
+  if (!event && !loadError) return <main className="guest-loading">טוען את הגלריה...</main>;
+
+  if (loadError && !event) {
+    return (
+      <main className="guest-loading guest-error-page">
+        <div>
+          <div className="guest-eyebrow">TREND54</div>
+          <h1>לא הצלחנו לפתוח את האירוע</h1>
+          <p>{loadError}</p>
+          <button onClick={() => window.location.reload()} className="guest-primary-button">נסו שוב</button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="guest-page">
@@ -136,6 +169,13 @@ export default function GuestPage() {
           <p>עברו בין התמונות, בחרו את הרגעים שאהבתם והורידו או הדפיסו אותם.</p>
         </div>
 
+        {loadError && (
+          <div className="guest-error-banner">
+            <strong>יש בעיה בטעינת התמונות.</strong>
+            <span>{loadError}</span>
+          </div>
+        )}
+
         <div className="guest-ai-card">
           <div>
             <div className="guest-ai-title">✨ רוצים למצוא את התמונות שלכם?</div>
@@ -145,14 +185,12 @@ export default function GuestPage() {
           {matches !== null && <button className="guest-link-button" onClick={clearAiResults}>הצג את כל התמונות</button>}
         </div>
 
-        {matches !== null && (
-          <div className="guest-results-note">
-            נמצאו {matches.length} תמונות {matches.length ? "התואמות לסלפי שלכם" : ""}.
-          </div>
-        )}
+        {matches !== null && <div className="guest-results-note">נמצאו {matches.length} תמונות {matches.length ? "התואמות לסלפי שלכם" : ""}.</div>}
 
         {visiblePhotos.length === 0 ? (
-          <div className="guest-empty">הצלם עדיין לא העלה תמונות לאירוע הזה.</div>
+          <div className="guest-empty">
+            {loadError ? "בדקו את הרשאות Supabase של דף האורח." : "הצלם עדיין לא העלה תמונות לאירוע הזה."}
+          </div>
         ) : (
           <div className="guest-gallery">
             {visiblePhotos.map((p) => {
@@ -160,7 +198,7 @@ export default function GuestPage() {
               return (
                 <article key={p.id} className={`guest-photo-card ${selected ? "is-selected" : ""}`}>
                   <button className="guest-photo-button" onClick={() => setActivePhoto(p)} aria-label="פתיחת תמונה">
-                    <img src={publicPhotoUrl(p.storage_path)} alt="" loading="lazy" />
+                    <img src={publicPhotoUrl(p.storage_path)} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.opacity = "0.25"; }} />
                   </button>
                   <button className="guest-select-button" onClick={() => toggleSelect(p.id)} aria-label={selected ? "בטל בחירה" : "בחר תמונה"}>
                     {selected ? "✓" : "○"}

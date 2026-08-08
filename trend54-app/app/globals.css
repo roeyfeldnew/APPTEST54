@@ -84,3 +84,10 @@ button { font-family: inherit; }
 @media print {
   .guest-page { display: none !important; }
 }
+
+.guest-error-page { text-align: center; padding: 32px; }
+.guest-error-page > div { width: min(100%, 560px); margin: auto; }
+.guest-error-page h1 { font: 500 42px/1.1 var(--serif); color: #292722; margin: 12px 0; }
+.guest-error-page p { color: #766f65; line-height: 1.7; margin-bottom: 24px; }
+.guest-error-banner { display: flex; flex-direction: column; gap: 5px; max-width: 900px; margin: -18px auto 30px; padding: 14px 18px; border: 1px solid #ead9c1; border-radius: 14px; background: #fffaf1; color: #6f5a3e; font-size: 12px; }
+.guest-error-banner span { color: #8a8175; }
