@@ -19,6 +19,10 @@ export default function EventDashboard() {
   const [uploadingCount, setUploadingCount] = useState(0);
   const inputRef = useRef(null);
 
+  const [uploadingFrame, setUploadingFrame] = useState(null); // 'portrait' | 'landscape' | null
+  const portraitFrameInputRef = useRef(null);
+  const landscapeFrameInputRef = useRef(null);
+
   useEffect(() => {
     loadEverything();
   }, [id]);
@@ -106,6 +110,51 @@ export default function EventDashboard() {
     }
   }
 
+  async function uploadFrame(file, orientation) {
+    if (!file) return;
+    setUploadingFrame(orientation);
+    try {
+      const path = `${id}/frames/${orientation}-${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage.from("photos").upload(path, file, {
+        contentType: "image/png",
+        cacheControl: "3600",
+      });
+      if (uploadError) throw uploadError;
+
+      const column = orientation === "portrait" ? "frame_portrait_path" : "frame_landscape_path";
+
+      // מוחקים קובץ מסגרת ישן אם היה, כדי לא להשאיר קבצים יתומים
+      const oldPath = event[column];
+
+      const { error: updateError } = await supabase.from("events").update({ [column]: path }).eq("id", id);
+      if (updateError) throw updateError;
+
+      if (oldPath) {
+        await supabase.storage.from("photos").remove([oldPath]);
+      }
+
+      setEvent((prev) => ({ ...prev, [column]: path }));
+    } catch (err) {
+      alert("שגיאה בהעלאת המסגרת: " + err.message);
+    } finally {
+      setUploadingFrame(null);
+    }
+  }
+
+  async function removeFrame(orientation) {
+    const column = orientation === "portrait" ? "frame_portrait_path" : "frame_landscape_path";
+    const oldPath = event[column];
+    const { error } = await supabase.from("events").update({ [column]: null }).eq("id", id);
+    if (error) {
+      alert("שגיאה בהסרת המסגרת: " + error.message);
+      return;
+    }
+    if (oldPath) {
+      await supabase.storage.from("photos").remove([oldPath]);
+    }
+    setEvent((prev) => ({ ...prev, [column]: null }));
+  }
+
   async function removePhoto(photo) {
     await supabase.storage.from("photos").remove([photo.storage_path]);
     await supabase.from("photos").delete().eq("id", photo.id);
@@ -170,6 +219,67 @@ export default function EventDashboard() {
           </button>
         </div>
       </header>
+
+      {/* מסגרות שקופות לאירוע */}
+      <div style={{ padding: "24px 32px", borderBottom: "1px solid var(--muted-faint)" }}>
+        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.15em", color: "var(--muted-light)", textTransform: "uppercase", marginBottom: 14 }}>
+          מסגרות שקופות לאירוע (אופציונלי, PNG שקוף)
+        </div>
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {[
+            { orientation: "portrait", label: "מסגרת לאורך", ref: portraitFrameInputRef, path: event.frame_portrait_path },
+            { orientation: "landscape", label: "מסגרת לרוחב", ref: landscapeFrameInputRef, path: event.frame_landscape_path },
+          ].map((f) => (
+            <div key={f.orientation} style={{ width: 150 }}>
+              <input
+                ref={f.ref}
+                type="file"
+                accept="image/png"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files[0]) uploadFrame(e.target.files[0], f.orientation);
+                  e.target.value = "";
+                }}
+              />
+              <div
+                onClick={() => f.ref.current?.click()}
+                style={{
+                  position: "relative",
+                  aspectRatio: f.orientation === "portrait" ? "4/5" : "5/4",
+                  borderRadius: 2,
+                  border: f.path ? "1px solid rgba(242,237,228,0.25)" : "2px dashed rgba(242,237,228,0.25)",
+                  cursor: "pointer",
+                  overflow: "hidden",
+                  background: "repeating-conic-gradient(rgba(242,237,228,0.06) 0% 25%, transparent 0% 50%) 50% / 12px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {uploadingFrame === f.orientation ? (
+                  <span className="spin mono" style={{ width: 16, height: 16, border: "2px solid var(--accent-bright)", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block" }} />
+                ) : f.path ? (
+                  <img src={publicPhotoUrl(f.path)} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                ) : (
+                  <span className="mono" style={{ fontSize: 22, color: "var(--muted-light)" }}>+</span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                <span className="mono" style={{ fontSize: 10, color: "var(--muted-light)" }}>{f.label}</span>
+                {f.path && (
+                  <button
+                    onClick={() => removeFrame(f.orientation)}
+                    className="mono"
+                    style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 10, textDecoration: "underline" }}
+                  >
+                    הסרה
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* scene tabs */}
       <div style={{ display: "flex", gap: 8, padding: "20px 32px", borderBottom: "1px solid var(--muted-faint)", flexWrap: "wrap" }}>

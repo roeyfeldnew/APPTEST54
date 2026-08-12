@@ -1,8 +1,10 @@
 -- הרצה חד-פעמית ב-Supabase: SQL Editor -> New Query -> הדביקו את כל הקובץ -> Run
 --
 -- אם כבר הרצתם את הסכימה בעבר (הטבלאות כבר קיימות), במקום להריץ הכל מחדש
--- מספיק להריץ רק את השורה הבאה כדי להוסיף תמיכה בתמונת קאבר:
+-- מספיק להריץ רק את השורות הבאות כדי להוסיף תמיכה בתמונת קאבר ובמסגרות:
 --   alter table events add column if not exists cover_photo_path text;
+--   alter table events add column if not exists frame_portrait_path text;
+--   alter table events add column if not exists frame_landscape_path text;
 --   create policy "public update events" on events for update using (true);
 
 create extension if not exists "pgcrypto";
@@ -13,6 +15,8 @@ create table if not exists events (
   event_date date not null,
   slug text unique not null,
   cover_photo_path text,
+  frame_portrait_path text,
+  frame_landscape_path text,
   created_at timestamptz default now()
 );
 

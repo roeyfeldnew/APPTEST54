@@ -26,6 +26,16 @@ export default function GuestPage() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
+  const [photoOrientations, setPhotoOrientations] = useState({}); // { [photoId]: 'portrait' | 'landscape' }
+  const [showFramesPreview, setShowFramesPreview] = useState(true);
+
+  function frameForPhoto(photo) {
+    const orientation = photoOrientations[photo.id];
+    if (!orientation || !event) return null;
+    const path = orientation === "portrait" ? event.frame_portrait_path : event.frame_landscape_path;
+    return path ? publicPhotoUrl(path) : null;
+  }
+
   useEffect(() => {
     (async () => {
       const { data: ev } = await supabase.from("events").select("*").eq("id", id).single();
@@ -233,9 +243,21 @@ export default function GuestPage() {
               <p className="mono" style={{ textAlign: "center", color: "var(--muted)" }}>הצלם עדיין לא העלה תמונות לאירוע הזה</p>
             ) : (
               <>
+                {(event.frame_portrait_path || event.frame_landscape_path) && (
+                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+                    <button
+                      onClick={() => setShowFramesPreview((v) => !v)}
+                      className="mono"
+                      style={{ padding: "6px 14px", borderRadius: 2, border: "1px solid rgba(242,237,228,0.25)", background: "transparent", color: "var(--muted-light)", cursor: "pointer", fontSize: 10 }}
+                    >
+                      {showFramesPreview ? "🖼 הסתרת מסגרות בתצוגה" : "🖼 הצגת מסגרות בתצוגה"}
+                    </button>
+                  </div>
+                )}
                 <div className="masonry-grid" style={{ maxWidth: 900, margin: "0 auto 40px auto" }}>
                   {displayedPhotos.map((p) => {
                     const isSelected = selectedIds.includes(p.id);
+                    const frameUrl = frameForPhoto(p);
                     return (
                       <button
                         key={p.id}
@@ -243,7 +265,20 @@ export default function GuestPage() {
                         className="masonry-item"
                         style={{ position: "relative", border: "none", padding: 0, cursor: "pointer", borderRadius: 2, overflow: "hidden", outline: isSelected ? "3px solid var(--accent-bright)" : "3px solid transparent" }}
                       >
-                        <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
+                        <img
+                          src={publicPhotoUrl(p.storage_path)}
+                          alt=""
+                          style={{ width: "100%", height: "auto", display: "block" }}
+                          onLoad={(e) => {
+                            if (photoOrientations[p.id]) return;
+                            const { naturalWidth, naturalHeight } = e.target;
+                            const orientation = naturalWidth >= naturalHeight ? "landscape" : "portrait";
+                            setPhotoOrientations((prev) => ({ ...prev, [p.id]: orientation }));
+                          }}
+                        />
+                        {frameUrl && showFramesPreview && (
+                          <img src={frameUrl} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }} />
+                        )}
                         {isSelected && (
                           <div style={{ position: "absolute", top: 8, left: 8, width: 22, height: 22, borderRadius: "50%", background: "var(--accent-bright)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--paper)", fontSize: 12 }}>
                             ✓
@@ -290,7 +325,10 @@ export default function GuestPage() {
           <h1 className="serif" style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)", marginBottom: 24 }}>מוכן להדפסה</h1>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, alignItems: "center", marginBottom: 32 }}>
             {displayedPhotos.filter((p) => selectedIds.includes(p.id)).map((p) => (
-              <img key={p.id} src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: 160, aspectRatio: "4/5", objectFit: "cover", background: "var(--paper)", padding: 6 }} />
+              <div key={p.id} style={{ position: "relative", width: 160, background: "var(--paper)", padding: 6 }}>
+                <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", display: "block" }} />
+                {frameForPhoto(p) && <img src={frameForPhoto(p)} alt="" style={{ position: "absolute", inset: 6, width: "calc(100% - 12px)", height: "calc(100% - 12px)", pointerEvents: "none" }} />}
+              </div>
             ))}
           </div>
           <button
@@ -304,11 +342,14 @@ export default function GuestPage() {
             ייפתח חלון ההדפסה של הדפדפן — בחרו את מדפסת המגנטים, הגדירו את המידה הרצויה ידנית בהגדרות ההדפסה, ולחצו הדפס. כל תמונה תודפס במסך מלא בעמוד נפרד.
           </p>
 
-          {/* אזור זה מוצג רק בהדפסה עצמה - כל תמונה נבחרה תופיע במסך מלא בעמוד נפרד */}
+          {/* אזור זה מוצג רק בהדפסה עצמה - כל תמונה נבחרה תופיע במסך מלא בעמוד נפרד, כולל המסגרת אם קיימת */}
           <div className="print-area">
             {displayedPhotos.filter((p) => selectedIds.includes(p.id)).map((p) => (
               <div key={p.id} className="print-photo">
-                <img src={publicPhotoUrl(p.storage_path)} alt="" />
+                <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                  <img src={publicPhotoUrl(p.storage_path)} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  {frameForPhoto(p) && <img src={frameForPhoto(p)} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />}
+                </div>
               </div>
             ))}
           </div>
