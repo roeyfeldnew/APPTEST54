@@ -78,7 +78,10 @@ export default function EventDashboard() {
 
         // 2. העלאה ל-Supabase Storage
         const path = `${id}/${activeScene}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from("photos").upload(path, file);
+        const { error: uploadError } = await supabase.storage.from("photos").upload(path, file, {
+          contentType: file.type || "image/jpeg",
+          cacheControl: "3600",
+        });
         if (uploadError) throw uploadError;
 
         // 3. שמירת רשומה בטבלת photos
@@ -137,11 +140,35 @@ export default function EventDashboard() {
         >
           ← חזרה לכל האירועים
         </button>
-        <div className="mono" style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--accent)", textTransform: "uppercase", marginBottom: 10 }}>
-          ניהול אירוע
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: "0.2em", color: "var(--accent)", textTransform: "uppercase", marginBottom: 10 }}>
+              ניהול אירוע
+            </div>
+            <h1 className="serif" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", margin: 0 }}>{event.title}</h1>
+            <div className="mono" style={{ fontSize: 11, color: "var(--muted-light)", marginTop: 10 }}>{event.event_date}</div>
+          </div>
+          <button
+            onClick={() => window.open(`/e/${event.id}`, "_blank")}
+            className="mono"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 18px",
+              borderRadius: 2,
+              border: "1px solid rgba(242,237,228,0.3)",
+              background: "transparent",
+              color: "var(--paper)",
+              cursor: "pointer",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            👁 PREVIEW GALLERY
+          </button>
         </div>
-        <h1 className="serif" style={{ fontSize: "clamp(2rem, 5vw, 3rem)", margin: 0 }}>{event.title}</h1>
-        <div className="mono" style={{ fontSize: 11, color: "var(--muted-light)", marginTop: 10 }}>{event.event_date}</div>
       </header>
 
       {/* scene tabs */}
