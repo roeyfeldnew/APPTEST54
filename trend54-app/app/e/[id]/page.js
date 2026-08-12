@@ -21,6 +21,11 @@ export default function GuestPage() {
   const [downloading, setDownloading] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
   useEffect(() => {
     (async () => {
       const { data: ev } = await supabase.from("events").select("*").eq("id", id).single();
@@ -31,13 +36,13 @@ export default function GuestPage() {
     })();
   }, [id]);
 
-  async function handleSelfie(file) {
+  // ליבה משותפת: מקבלת כל אלמנט שאפשר להריץ עליו זיהוי פנים (img / video / canvas)
+  async function processSelfieImage(imageLike) {
     setScanning(true);
     setNoMatchNotice(false);
     await loadModels();
     try {
-      const img = await fileToImage(file);
-      const selfieDescriptors = await getFaceDescriptors(img);
+      const selfieDescriptors = await getFaceDescriptors(imageLike);
       if (selfieDescriptors.length === 0) {
         alert("לא זיהינו פרצוף בתמונה, נסו שוב עם תאורה טובה יותר");
         setScanning(false);
@@ -57,6 +62,46 @@ export default function GuestPage() {
     } finally {
       setScanning(false);
     }
+  }
+
+  async function handleSelfieFile(file) {
+    const img = await fileToImage(file);
+    await processSelfieImage(img);
+  }
+
+  async function openCamera() {
+    setCameraError(null);
+    setCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      console.error("לא ניתן לפתוח מצלמה", err);
+      setCameraError("לא הצלחנו לגשת למצלמה. ודאו שנתתם הרשאה, או השתמשו באפשרות ההעלאה.");
+    }
+  }
+
+  function closeCamera() {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setCameraOpen(false);
+  }
+
+  async function captureFromCamera() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    closeCamera();
+    await processSelfieImage(canvas);
   }
 
   function toggleSelect(pid) {
@@ -93,9 +138,8 @@ export default function GuestPage() {
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="user"
         style={{ display: "none" }}
-        onChange={(e) => e.target.files[0] && handleSelfie(e.target.files[0])}
+        onChange={(e) => e.target.files[0] && handleSelfieFile(e.target.files[0])}
       />
 
       {step === "gallery" && (
@@ -159,7 +203,7 @@ export default function GuestPage() {
               </div>
             ) : (
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={openCamera}
                 disabled={scanning || loadingPhotos}
                 className="mono"
                 style={{ padding: "10px 20px", borderRadius: 2, border: "1px solid rgba(242,237,228,0.3)", background: "transparent", color: "var(--paper)", cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", gap: 8 }}
@@ -268,6 +312,71 @@ export default function GuestPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {cameraOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,0.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <button
+            onClick={closeCamera}
+            className="mono"
+            style={{ position: "absolute", top: 20, left: 20, background: "none", border: "none", color: "var(--paper)", fontSize: 22, cursor: "pointer" }}
+          >
+            ✕
+          </button>
+
+          {cameraError ? (
+            <div style={{ textAlign: "center", maxWidth: 320 }}>
+              <p className="mono" style={{ color: "var(--paper)", fontSize: 13, marginBottom: 20 }}>{cameraError}</p>
+              <button
+                onClick={() => {
+                  closeCamera();
+                  fileInputRef.current?.click();
+                }}
+                className="mono"
+                style={{ padding: "12px 20px", borderRadius: 2, border: "none", background: "var(--paper)", color: "var(--ink)", cursor: "pointer", fontSize: 12 }}
+              >
+                העלאת תמונה במקום זאת
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={{ position: "relative", width: "100%", maxWidth: 420, aspectRatio: "3/4", borderRadius: 4, overflow: "hidden", background: "#000" }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }}
+                />
+              </div>
+
+              <button
+                onClick={captureFromCamera}
+                aria-label="צלמו סלפי"
+                style={{
+                  marginTop: 28,
+                  width: 68,
+                  height: 68,
+                  borderRadius: "50%",
+                  border: "4px solid var(--paper)",
+                  background: "var(--accent-bright)",
+                  cursor: "pointer",
+                }}
+              />
+
+              <button
+                onClick={() => {
+                  closeCamera();
+                  fileInputRef.current?.click();
+                }}
+                className="mono"
+                style={{ marginTop: 20, background: "none", border: "none", color: "var(--muted-light)", fontSize: 11, cursor: "pointer", textDecoration: "underline" }}
+              >
+                או העלו תמונה מהמכשיר
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
